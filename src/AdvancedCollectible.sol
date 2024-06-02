@@ -9,16 +9,19 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 
 contract AdvancedCollectible is VRFConsumerBaseV2Plus, ERC721URIStorage {
     uint256 public tokenCounter;
+
     enum Breed {
         PUG,
         SHIBA_INU,
         ST_BERNARD
     }
+
     // add other things
     mapping(uint256 => address) public requestIdToSender;
     mapping(uint256 => string) public requestIdToTokenURI;
     mapping(uint256 => Breed) public tokenIdToBreed;
     mapping(uint256 => uint256) public requestIdToTokenId;
+
     event RequestedCollectible(uint256 indexed requestId);
     // New event from the video!
     event ReturnedCollectible(uint256 indexed newItemId, Breed breed);
