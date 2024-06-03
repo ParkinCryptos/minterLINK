@@ -1,5 +1,12 @@
 # NFT minter
 
+```txt
+Generate a ${DOG_BREED} dog sitting in a bar table. He is talking with his ${DOG_BREED} peers about blockchain technology, web3 and cryptocurrencies, namely Bitcoin (BTC), Polygon (POL) and Polkadot (DOT). The bar is surrounded by nature and a garden within a park.
+
+Keywords: community, education, collaboration, growth.
+Art styles: reggae, psychedelic, cyberpunk, pixel art.
+```
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**

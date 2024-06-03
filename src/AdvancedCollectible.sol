@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {IVRFCoordinatorV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
@@ -10,21 +12,32 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 contract AdvancedCollectible is VRFConsumerBaseV2Plus, ERC721URIStorage {
     uint256 public tokenCounter;
 
-    enum Breed {
+    string[] public breeds = [
+        "PUG",
+        "SHIBA_INU",
+        "ST_BERNARD",
+        "CHIHUAHUA",
+        "POMERANIAN"
+    ];
+
+    /* enum Breed {
         PUG,
         SHIBA_INU,
-        ST_BERNARD
+        ST_BERNARD,
+        CHIHUAHUA,
+        POMERANIAN
     }
-
+*/
     // add other things
     mapping(uint256 => address) public requestIdToSender;
-    mapping(uint256 => string) public requestIdToTokenURI;
-    mapping(uint256 => Breed) public tokenIdToBreed;
-    mapping(uint256 => uint256) public requestIdToTokenId;
+    // mapping(uint256 => string) public requestIdToTokenURI;
+    mapping(uint256 => string) public tokenIdToBreed;
+    // mapping(uint256 => uint256) public requestIdToTokenId;
+    mapping(string => string) public breedToUri;
 
     event RequestedCollectible(uint256 indexed requestId);
     // New event from the video!
-    event ReturnedCollectible(uint256 indexed newItemId, Breed breed);
+    event ReturnedCollectible(uint256 indexed newItemId, string breed);
 
     bytes32 internal keyHash;
     uint256 subscriptionId;
@@ -39,25 +52,42 @@ contract AdvancedCollectible is VRFConsumerBaseV2Plus, ERC721URIStorage {
         keyHash = _keyhash;
         COORDINATOR = IVRFCoordinatorV2Plus(_VRFCoordinator);
         subscriptionId = _subscriptionId;
+
+        // Hardcode the URIs here
+        breedToUri[
+            "PUG"
+        ] = "ipfs://QmWP2tJQzU2demmNjdETBrBKTSm3B9iqqQsGXmMykvuvne";
+        breedToUri[
+            "SHIBA_INU"
+        ] = "ipfs://QmZNZTUNg7gzkRphw8KafZcPyEJnDAQr18GuSYaCbbYbvX";
+        breedToUri[
+            "ST_BERNARD"
+        ] = "ipfs://QmXJpa3cfUP7PHN4AU5onhYULkM1Y9ipYqMkYD6Hx7Hr41";
+        breedToUri[
+            "CHIHUAHUA"
+        ] = "ipfs://QmZsMt5jmuLXKebcAM5TQmWjYf4CmttooVQYwSc49j3WDm";
+        breedToUri[
+            "POMERANIAN"
+        ] = "ipfs://QmfGHuQ9xDR2neE2EYdsBnxQrUNV6wtaXg6nUkeS2kC53W";
     }
 
-    function createCollectible(
-        string memory tokenURI // returns (uint256)
-    ) public {
+    function createCollectible()
+        public
+    // string memory tokenURI // returns (uint256)
+    {
         uint256 requestId = COORDINATOR.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
                 subId: subscriptionId,
-                requestConfirmations: 1,
+                requestConfirmations: 3,
                 callbackGasLimit: 1000000,
-                numWords: 3,
+                numWords: 1,
                 extraArgs: VRFV2PlusClient._argsToBytes(
                     VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
                 )
             })
         );
         requestIdToSender[requestId] = msg.sender;
-        requestIdToTokenURI[requestId] = tokenURI;
         emit RequestedCollectible(requestId);
     }
 
@@ -67,17 +97,40 @@ contract AdvancedCollectible is VRFConsumerBaseV2Plus, ERC721URIStorage {
         uint256[] memory randomWords
     ) internal override {
         address dogOwner = requestIdToSender[requestId];
-        string memory tokenURI = requestIdToTokenURI[requestId];
+        // string memory tokenURI = requestIdToTokenURI[requestId];
+        string memory breed = breeds[randomWords[0] % breeds.length];
         uint256 newItemId = tokenCounter;
         _safeMint(dogOwner, newItemId);
-        _setTokenURI(newItemId, tokenURI);
-        Breed breed = Breed(randomWords[0] % 3);
+        _setTokenURI(newItemId, breedToUri[breed]);
         tokenIdToBreed[newItemId] = breed;
-        requestIdToTokenId[requestId] = newItemId;
+        // requestIdToTokenId[requestId] = newItemId;
         tokenCounter = tokenCounter + 1;
         emit ReturnedCollectible(newItemId, breed);
     }
 
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
+        string memory base = "data:application/json;base64,";
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"name": "',
+                        tokenIdToBreed[tokenId],
+                        '",',
+                        '"description": "A randomly generated dog breed.",',
+                        '"image": "',
+                        breedToUri[tokenIdToBreed[tokenId]],
+                        '"}'
+                    )
+                )
+            )
+        );
+        return string(abi.encodePacked(base, json));
+    }
+
+    /*
     function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
         require(
             ownerOf(tokenId) == _msgSender() ||
@@ -86,4 +139,5 @@ contract AdvancedCollectible is VRFConsumerBaseV2Plus, ERC721URIStorage {
         );
         _setTokenURI(tokenId, _tokenURI);
     }
+    */
 }
